@@ -1,0 +1,97 @@
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+venv*/
+.venv/
+
+# Local editor and OS files
+/.vs/
+/.vscode/
+/.idea/
+.DS_Store
+Thumbs.db
+
+# ComfyUI runtime data. Keep these files on the local machine only.
+/output/
+/input/*
+!/input/example.png
+/models/
+/temp/
+/user/
+/custom_nodes/*
+!/custom_nodes/example_node.py.example
+/web/extensions/*
+!/web/extensions/logging.js.example
+!/web/extensions/core/
+web_custom_versions/
+extra_model_paths.yaml
+.comfy_environment
+/tests-ui/data/object_info.json
+filtered-openapi.yaml
+uv.lock
+
+# ComfyAI Studio local state and generated artifacts
+/launcher_logs/
+/watermark_runs/
+/video_faceswap_runs/
+/external/
+/build/
+/dist/
+/ComfyAI-Studio-Launcher.exe
+/ComfyAI-Studio-Launcher.spec
+/object_info_cache.json
+/ai_studio_config.json
+
+# Upstream repository governance and release automation are not reused by this
+# derivative repository. Keep only the public-source check added for this repo.
+/CODEOWNERS
+/.github/ISSUE_TEMPLATE/
+/.github/PULL_REQUEST_TEMPLATE/
+/.github/scripts/
+/.github/workflows/*
+!/.github/workflows/public-source-check.yml
+
+# Common local databases, logs, downloaded archives, and generated binaries
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.lock
+*.log
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.exe
+*.dll
+*.pyd
+*.so
+
+# Model weights must be downloaded separately according to their own licenses.
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.gguf
+*.bin
+
+# Generated or user-provided media
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.wav
+*.mp3
+
+# Local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx

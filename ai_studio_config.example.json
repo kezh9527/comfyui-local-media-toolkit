@@ -1,0 +1,7 @@
+{
+  "gpu_enabled": false,
+  "autostart_parse": false,
+  "autostart_watermark": false,
+  "activity_cache_seconds": 5,
+  "workflow_cache_seconds": 10
+}
