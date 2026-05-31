@@ -44,6 +44,7 @@ uv.lock
 /ComfyAI-Studio-Launcher.spec
 /object_info_cache.json
 /ai_studio_config.json
+/docs/MAINTENANCE_PLAN_4_WEEKS.zh-CN.md
 
 # Upstream repository governance and release automation are not reused by this
 # derivative repository. Keep only the public-source check added for this repo.
