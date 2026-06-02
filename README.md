@@ -36,6 +36,8 @@ start_comfyui_cpu.bat
 For the full setup, model placement, CLI examples, API endpoints, and optional
 integrations, see [docs/USAGE.zh-CN.md](docs/USAGE.zh-CN.md). Before using media
 editing features, read [docs/RESPONSIBLE_USE.md](docs/RESPONSIBLE_USE.md).
+The current verified Windows/Python/Conda environment record is tracked in
+[docs/VERIFIED_ENVIRONMENTS.zh-CN.md](docs/VERIFIED_ENVIRONMENTS.zh-CN.md).
 
 ## Project Governance
 

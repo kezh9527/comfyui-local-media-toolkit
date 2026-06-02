@@ -24,6 +24,10 @@ set CONDA_ENVS_ROOT=C:\conda_envs
 set FFMPEG_BIN_DIR=C:\ffmpeg\bin
 ```
 
+当前维护机器的 Windows、Python、Conda、FFmpeg 和硬件记录见
+[VERIFIED_ENVIRONMENTS.zh-CN.md](VERIFIED_ENVIRONMENTS.zh-CN.md)。该记录只
+代表真实验证过的环境，不代表未测试硬件或操作系统也已经可用。
+
 ## 3. 启动 ComfyUI
 
 CPU 模式：

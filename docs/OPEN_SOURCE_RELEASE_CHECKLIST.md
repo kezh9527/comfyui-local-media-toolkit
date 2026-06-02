@@ -26,6 +26,8 @@ git status --short --ignored
 - Enable GitHub Issues and use them for the derivative components.
 - Add screenshots or a short demo that uses synthetic or authorized media.
 - Record tested operating systems, Conda layout, and known limitations.
+  Current records live in
+  [VERIFIED_ENVIRONMENTS.zh-CN.md](VERIFIED_ENVIRONMENTS.zh-CN.md).
 - Keep a small roadmap and respond to issues consistently.
 
 ## Maintainer Application Notes
