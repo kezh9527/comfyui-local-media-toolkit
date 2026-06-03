@@ -28,7 +28,12 @@ set FFMPEG_BIN_DIR=C:\ffmpeg\bin
 [VERIFIED_ENVIRONMENTS.zh-CN.md](VERIFIED_ENVIRONMENTS.zh-CN.md)。该记录只
 代表真实验证过的环境，不代表未测试硬件或操作系统也已经可用。
 
-## 3. 启动 ComfyUI
+## 3. 合成演示
+
+公开演示素材位于 [DEMO.zh-CN.md](DEMO.zh-CN.md)。演示图由代码生成，不是
+用户私有素材；清理结果由本地 `watermark_tools` CLI 生成。
+
+## 4. 启动 ComfyUI
 
 CPU 模式：
 
@@ -53,7 +58,7 @@ build_ai_studio_exe.bat
 
 构建结果位于 `dist/` 和仓库根目录，两处 EXE 都会被 Git 忽略。
 
-## 4. 本地图片去水印
+## 5. 本地图片去水印
 
 以下示例从仓库根目录执行：
 
@@ -71,7 +76,7 @@ $python = "D:\conda_envs\comfyui\python.exe"
 - `--mask .\input\mask.png`：使用黑白掩码，白色区域会被修复。
 - `--auto`：尝试自动识别边缘区域的高对比度水印。
 
-## 5. 本地视频去水印
+## 6. 本地视频去水印
 
 ```powershell
 & $python -m watermark_tools.cli video .\input\sample.mp4 `
@@ -82,7 +87,7 @@ $python = "D:\conda_envs\comfyui\python.exe"
 
 调试时可增加 `--limit-frames 10`，只处理前 10 帧。
 
-## 6. 可选的平台链接解析
+## 7. 可选的平台链接解析
 
 该功能依赖单独安装的 `parse-video-py`：
 
@@ -100,7 +105,7 @@ $env:PARSE_VIDEO_BASE_URL = "http://127.0.0.1:8000"
 
 请只下载你拥有或已获得授权的媒体，并遵守对应平台规则。
 
-## 7. 可选的 AI 去水印模式
+## 8. 可选的 AI 去水印模式
 
 首次安装：
 
@@ -117,7 +122,7 @@ setup_watermark_ai.bat
 该脚本会将 `D-Ogi/WatermarkRemover-AI` 下载到 `external/`。首次运行还可能
 下载额外模型权重。`external/` 和模型文件均不会提交到 GitHub。
 
-## 8. 本地 API
+## 9. 本地 API
 
 启动水印服务：
 
@@ -153,7 +158,7 @@ Invoke-RestMethod -Method Post `
   -Body $body
 ```
 
-## 9. 可选的 InstantID 人脸替换
+## 10. 可选的 InstantID 人脸替换
 
 模型文件需要自行下载并放置在以下位置：
 
@@ -173,7 +178,7 @@ run_video_faceswap_example.bat
 该功能仅用于已获得明确授权的素材和人脸。完整参数说明见
 [../VIDEO_FACESWAP_README.txt](../VIDEO_FACESWAP_README.txt)。
 
-## 10. 公开仓库发布前检查
+## 11. 公开仓库发布前检查
 
 初始化或更新 Git 暂存区后执行：
 

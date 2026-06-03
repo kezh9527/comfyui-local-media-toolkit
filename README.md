@@ -39,6 +39,16 @@ editing features, read [docs/RESPONSIBLE_USE.md](docs/RESPONSIBLE_USE.md).
 The current verified Windows/Python/Conda environment record is tracked in
 [docs/VERIFIED_ENVIRONMENTS.zh-CN.md](docs/VERIFIED_ENVIRONMENTS.zh-CN.md).
 
+## Synthetic Demo
+
+The image below is generated from code for documentation only. It is not user
+media and does not require model weights.
+
+![Synthetic watermark cleanup demo](docs/assets/demo/synthetic-watermark-clean.png)
+
+See [docs/DEMO.zh-CN.md](docs/DEMO.zh-CN.md) for the input image, reproduction
+command, and responsible-use notes.
+
 ## Project Governance
 
 This repository is a derivative project, not the official ComfyUI repository.
