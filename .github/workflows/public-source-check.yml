@@ -14,5 +14,7 @@ jobs:
           python-version: "3.11"
       - name: Check public source boundary
         run: python scripts/check_public_source.py
+      - name: Run maintenance tests
+        run: python -m unittest discover -s tests-public
       - name: Compile local toolkit sources
         run: python -m compileall -q ai_studio_launcher.py video_faceswap_pipeline.py watermark_tools

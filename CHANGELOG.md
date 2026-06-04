@@ -9,6 +9,9 @@
 - Derivative-project documentation, attribution notes, responsible-use guidance,
   and a maintainer release checklist.
 - Example runtime configuration in `ai_studio_config.example.json`.
+- New clone startup validation record in `docs/CLONE_VALIDATION.zh-CN.md`.
+- Standard-library maintenance tests for the public-source checker and a
+  missing-FFmpeg error path.
 
 ### Changed
 
@@ -20,3 +23,4 @@
   include actionable resolution steps in the launcher and API responses.
 - Public documentation describes optional third-party dependencies as
   setup-time downloads instead of bundled source.
+- Public-source CI now runs the maintenance test suite before compile checks.
