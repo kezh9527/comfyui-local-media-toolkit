@@ -43,7 +43,9 @@ def find_ffmpeg_tool(name: str) -> str:
         return exe
 
     raise FileNotFoundError(
-        f"{name} was not found. Add ffmpeg to PATH or place it under D:/AI/ffmpeg/bin."
+        f"{name} was not found. Install FFmpeg, add it to PATH, or set "
+        "FFMPEG_BIN_DIR to the directory that contains ffmpeg.exe and ffprobe.exe "
+        "(for example: set FFMPEG_BIN_DIR=C:\\ffmpeg\\bin)."
     )
 
 

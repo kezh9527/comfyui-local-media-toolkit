@@ -28,6 +28,50 @@ set FFMPEG_BIN_DIR=C:\ffmpeg\bin
 [VERIFIED_ENVIRONMENTS.zh-CN.md](VERIFIED_ENVIRONMENTS.zh-CN.md)。该记录只
 代表真实验证过的环境，不代表未测试硬件或操作系统也已经可用。
 
+### 缺失依赖提示验证
+
+本地控制台会在 `/api/status`、服务控制面板和工作流卡片中提示缺失依赖的
+修复步骤。以下命令不会下载模型或第三方项目，只用于验证提示是否可读：
+
+```powershell
+$python = "D:\conda_envs\comfyui\python.exe"
+
+# 验证 FFmpeg 缺失提示。结束后关闭当前 PowerShell 或恢复原环境变量即可。
+$oldPath = $env:PATH
+$oldFfmpeg = $env:FFMPEG_BIN_DIR
+$oldCondaEnvs = $env:CONDA_ENVS_ROOT
+$env:PATH = ""
+$env:FFMPEG_BIN_DIR = "Z:\missing-ffmpeg"
+$env:CONDA_ENVS_ROOT = "$PWD\.missing-envs"
+@'
+import json
+import ai_studio_launcher as launcher
+print(json.dumps(launcher.dependency_status_payload()["ffmpeg"], ensure_ascii=False, indent=2))
+'@ | & $python -
+$env:PATH = $oldPath
+if ($null -eq $oldFfmpeg) { Remove-Item Env:\FFMPEG_BIN_DIR -ErrorAction SilentlyContinue } else { $env:FFMPEG_BIN_DIR = $oldFfmpeg }
+if ($null -eq $oldCondaEnvs) { Remove-Item Env:\CONDA_ENVS_ROOT -ErrorAction SilentlyContinue } else { $env:CONDA_ENVS_ROOT = $oldCondaEnvs }
+
+# 验证可选 parse-video-py 依赖提示。
+$oldCondaEnvs = $env:CONDA_ENVS_ROOT
+$env:CONDA_ENVS_ROOT = "$PWD\.missing-envs"
+@'
+import json
+import ai_studio_launcher as launcher
+print(json.dumps(launcher.dependency_status_payload()["parse_video"], ensure_ascii=False, indent=2))
+'@ | & $python -
+if ($null -eq $oldCondaEnvs) { Remove-Item Env:\CONDA_ENVS_ROOT -ErrorAction SilentlyContinue } else { $env:CONDA_ENVS_ROOT = $oldCondaEnvs }
+
+# 验证工作流缺失模型、输入和节点的修复步骤。
+@'
+import json
+from pathlib import Path
+import ai_studio_launcher as launcher
+diagnostics = launcher.diagnose_workflow(Path("workflows/instantid_inpaint_cpu_min.json"))
+print(json.dumps(diagnostics["resolution_steps"], ensure_ascii=False, indent=2))
+'@ | & $python -
+```
+
 ## 3. 合成演示
 
 公开演示素材位于 [DEMO.zh-CN.md](DEMO.zh-CN.md)。演示图由代码生成，不是

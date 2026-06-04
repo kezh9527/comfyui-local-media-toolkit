@@ -118,15 +118,18 @@ def activity_cache_seconds() -> int:
     return int(load_config()["activity_cache_seconds"])
 
 
+def ffmpeg_bin_dir() -> Path:
+    return Path(os.environ.get("FFMPEG_BIN_DIR", "D:/AI/ffmpeg/bin"))
+
+
 def env() -> dict[str, str]:
     value = os.environ.copy()
-    ffmpeg_bin_dir = value.get("FFMPEG_BIN_DIR", "D:\\AI\\ffmpeg\\bin")
     path_parts = [
         str(COMFY_ENV / "Library" / "cmd"),
         str(COMFY_ENV / "Library" / "bin"),
         str(PARSE_ENV / "Library" / "bin"),
         str(WATERMARK_AI_ENV / "Library" / "bin"),
-        ffmpeg_bin_dir,
+        str(ffmpeg_bin_dir()),
         value.get("PATH", ""),
     ]
     value["PATH"] = ";".join(path_parts)
@@ -176,12 +179,135 @@ def start_comfyui() -> subprocess.Popen:
     return start_process("comfyui", comfy_command())
 
 
+def dependency_item(
+    name: str,
+    ok: bool,
+    summary: str,
+    resolution_steps: list[str],
+    **extra: Any,
+) -> dict[str, Any]:
+    return {
+        "name": name,
+        "ok": ok,
+        "summary": summary,
+        "resolution_steps": resolution_steps if not ok else [],
+        **extra,
+    }
+
+
+def ffmpeg_dependency_payload() -> dict[str, Any]:
+    search_path = env()["PATH"]
+    ffmpeg = shutil.which("ffmpeg", path=search_path)
+    ffprobe = shutil.which("ffprobe", path=search_path)
+    ok = bool(ffmpeg and ffprobe)
+    missing = [name for name, path in (("ffmpeg", ffmpeg), ("ffprobe", ffprobe)) if not path]
+    summary = (
+        f"FFmpeg tools found: {ffmpeg}"
+        if ok
+        else f"缺少 FFmpeg 工具：{', '.join(missing)}。当前 FFMPEG_BIN_DIR 为 {ffmpeg_bin_dir()}。"
+    )
+    return dependency_item(
+        "ffmpeg",
+        ok,
+        summary,
+        [
+            "安装 FFmpeg，并确认同一个 bin 目录下存在 ffmpeg.exe 和 ffprobe.exe。",
+            "启动前把 FFMPEG_BIN_DIR 指向 FFmpeg 的 bin 目录，例如：set FFMPEG_BIN_DIR=C:\\ffmpeg\\bin",
+            "修改 PATH 或 FFMPEG_BIN_DIR 后，重启 ComfyAI Studio。",
+        ],
+        ffmpeg=ffmpeg,
+        ffprobe=ffprobe,
+        configured_bin_dir=str(ffmpeg_bin_dir()),
+    )
+
+
+def parse_video_dependency_payload() -> dict[str, Any]:
+    parse_exe = PARSE_ENV / "Scripts" / "parse-video-py.exe"
+    ok = is_port_open(PARSE_PORT) or parse_exe.exists()
+    summary = (
+        f"parse-video-py is available at {parse_exe}."
+        if ok
+        else f"缺少 parse-video-py 可执行文件：{parse_exe}。"
+    )
+    return dependency_item(
+        "parse-video-py",
+        ok,
+        summary,
+        [
+            "在仓库根目录运行 setup_parse_video_py.bat。",
+            "用 start_parse_video_py.bat 启动服务，或在控制台启用 Autostart parse-video。",
+            f"如果 Conda 环境不在默认位置，启动前设置 CONDA_ENVS_ROOT。当前值：{CONDA_ENVS_ROOT}",
+        ],
+        executable=str(parse_exe),
+        optional=True,
+        port=PARSE_PORT,
+    )
+
+
+def watermark_ai_dependency_payload() -> dict[str, Any]:
+    ai_dir = Path(os.environ.get("WATERMARK_REMOVER_AI_DIR", str(ROOT / "external" / "WatermarkRemover-AI")))
+    ai_python = Path(os.environ.get("WATERMARK_REMOVER_AI_PYTHON", str(WATERMARK_AI_ENV / "python.exe")))
+    script = ai_dir / "remwm.py"
+    ok = script.exists() and ai_python.exists()
+    summary = (
+        f"External AI watermark remover is available at {script}."
+        if ok
+        else f"可选 AI 去水印依赖尚未就绪。期望脚本：{script}；Python：{ai_python}。"
+    )
+    return dependency_item(
+        "WatermarkRemover-AI",
+        ok,
+        summary,
+        [
+            "在仓库根目录运行 setup_watermark_ai.bat。",
+            "如果外部项目或 Python 环境在自定义位置，设置 WATERMARK_REMOVER_AI_DIR 和 WATERMARK_REMOVER_AI_PYTHON。",
+            "该可选依赖就绪前，先使用本地 OpenCV 引擎。",
+        ],
+        directory=str(ai_dir),
+        optional=True,
+        python=str(ai_python),
+    )
+
+
+def dependency_status_payload() -> dict[str, dict[str, Any]]:
+    return {
+        "ffmpeg": ffmpeg_dependency_payload(),
+        "parse_video": parse_video_dependency_payload(),
+        "watermark_ai": watermark_ai_dependency_payload(),
+    }
+
+
+def dependency_error_payload(service: str, message: str) -> dict[str, Any]:
+    if service == "parse":
+        dependency = parse_video_dependency_payload()
+        return {
+            "ok": False,
+            "error": message,
+            "dependency": dependency,
+            "resolution_steps": dependency["resolution_steps"],
+        }
+    if service == "watermark":
+        ffmpeg = ffmpeg_dependency_payload()
+        steps = [
+            "在 comfyui 环境中安装最新 requirements.txt。",
+            "查看 launcher_logs/watermark-service.err.log，定位第一个导入或启动错误。",
+            "如果要处理视频，确认 FFmpeg 已安装，且 FFMPEG_BIN_DIR 指向它的 bin 目录。",
+        ]
+        if not ffmpeg["ok"]:
+            steps.extend(ffmpeg["resolution_steps"])
+        return {"ok": False, "error": message, "dependency": ffmpeg, "resolution_steps": steps}
+    return {"ok": False, "error": message, "resolution_steps": []}
+
+
 def start_parse_service() -> subprocess.Popen | None:
     if not is_port_open(PARSE_PORT):
         parse_exe = PARSE_ENV / "Scripts" / "parse-video-py.exe"
         if parse_exe.exists():
             return start_process("parse-video-py", [parse_exe, "serve", "--port", str(PARSE_PORT)])
-        log_launcher_error(f"parse-video-py executable not found: {parse_exe}")
+        log_launcher_error(
+            f"parse-video-py executable not found: {parse_exe}. "
+            "Run setup_parse_video_py.bat or set CONDA_ENVS_ROOT before launching."
+        )
         return None
     return None
 
@@ -250,7 +376,11 @@ def service_control_payload(service: str, action: str) -> dict[str, Any]:
     process_name, port, starter = services[service]
     if action == "start":
         starter()
-        return {"ok": wait_for_port(port), "service": service, "listening": is_port_open(port)}
+        ok = wait_for_port(port)
+        payload = {"ok": ok, "service": service, "listening": is_port_open(port)}
+        if not ok:
+            payload.update(dependency_error_payload(service, f"{process_name} did not start on port {port}"))
+        return payload
     if action == "stop":
         stopped = False
         for proc in list(PROCESSES):
@@ -325,7 +455,11 @@ def ports_payload() -> dict[str, Any]:
             info = pid_info(conn.pid or 0)
             info.update({"port": conn.laddr.port, "address": conn.laddr.ip})
             found[conn.laddr.port] = info
-    return {"ok": True, "ports": [found.get(port, {"port": port, "listening": False}) for port in sorted(ports)]}
+    return {
+        "ok": True,
+        "ports": [found.get(port, {"port": port, "listening": False}) for port in sorted(ports)],
+        "dependencies": dependency_status_payload(),
+    }
 
 
 def restart_comfy_payload() -> dict[str, Any]:
@@ -635,6 +769,35 @@ def model_exists(folder: str, name: str) -> bool:
     return name in model_index(folder)
 
 
+def workflow_resolution_steps(diagnostics: dict[str, Any]) -> list[str]:
+    steps: list[str] = []
+    if diagnostics.get("node_source") == "unavailable":
+        steps.append("启动 ComfyUI 后刷新控制台，以便实时检查自定义节点是否可用。")
+    missing_nodes = diagnostics.get("missing_nodes") or []
+    if missing_nodes:
+        steps.append(
+            "安装或启用缺失的 ComfyUI 节点，然后重启 ComfyUI："
+            + ", ".join(str(item) for item in missing_nodes)
+        )
+    missing_models = diagnostics.get("missing_models") or []
+    if missing_models:
+        by_folder: dict[str, list[str]] = {}
+        for item in missing_models:
+            by_folder.setdefault(str(item.get("folder_path") or item.get("folder")), []).append(str(item.get("name")))
+        for folder_path, names in by_folder.items():
+            steps.append(
+                f"下载所需模型文件并放入 {folder_path}："
+                + ", ".join(sorted(set(names)))
+            )
+    missing_inputs = diagnostics.get("missing_inputs") or []
+    if missing_inputs:
+        steps.append(
+            "上传或复制所需输入文件到 input 目录，也可以直接使用此工作流卡片上的文件选择器："
+            + ", ".join(str(item.get("name")) for item in missing_inputs)
+        )
+    return steps
+
+
 def diagnose_workflow(path: Path) -> dict[str, Any]:
     data = read_json_file(path)
     nodes = data.get("nodes") or []
@@ -654,14 +817,27 @@ def diagnose_workflow(path: Path) -> dict[str, Any]:
         for index, folder in MODEL_WIDGETS.get(node_type, {}).items():
             if index < len(values) and isinstance(values[index], str):
                 name = values[index]
-                models.append({"node": node_type, "folder": folder, "name": name, "ok": model_exists(folder, name)})
+                folder_path = ROOT / "models" / folder
+                models.append({
+                    "node": node_type,
+                    "folder": folder,
+                    "folder_path": str(folder_path),
+                    "folder_exists": folder_path.exists(),
+                    "name": name,
+                    "ok": model_exists(folder, name),
+                })
         if node_type in INPUT_NODE_TYPES and values and isinstance(values[0], str):
             name = values[0]
-            inputs.append({"node": node_type, "name": name, "ok": (ROOT / "input" / name).exists()})
+            inputs.append({
+                "node": node_type,
+                "name": name,
+                "path": str(ROOT / "input" / name),
+                "ok": (ROOT / "input" / name).exists(),
+            })
 
     missing_models = [item for item in models if not item["ok"]]
     missing_inputs = [item for item in inputs if not item["ok"]]
-    return {
+    diagnostics = {
         "ok": not missing_nodes and not missing_models and not missing_inputs,
         "node_source": node_source,
         "node_count": len(nodes),
@@ -672,6 +848,8 @@ def diagnose_workflow(path: Path) -> dict[str, Any]:
         "inputs": inputs,
         "missing_inputs": missing_inputs,
     }
+    diagnostics["resolution_steps"] = workflow_resolution_steps(diagnostics)
+    return diagnostics
 
 
 def workflow_summary(path: Path, *, include_diagnostics: bool = True) -> dict[str, Any]:
@@ -1053,6 +1231,7 @@ INDEX_HTML = r"""<!doctype html>
     .badge { border-radius: 999px; padding: 2px 8px; font-size: 12px; color: #fff; background: var(--accent); white-space: nowrap; }
     .badge.warn { background: var(--warn); }
     .diag { margin: 0; padding-left: 18px; color: var(--muted); }
+    .steps { margin: 0; padding-left: 20px; color: var(--text); }
     .input-list { display: grid; gap: 8px; }
     .input-row {
       display: grid;
@@ -1224,6 +1403,11 @@ INDEX_HTML = r"""<!doctype html>
       if (diag.missing_inputs?.length) issues.push('缺少输入：' + diag.missing_inputs.map(i => i.name).join(', '));
       return issues.length ? issues : ['节点、模型和输入文件已就绪'];
     }
+    function workflowResolutionSteps(diag) {
+      const steps = diag?.resolution_steps || [];
+      if (!steps.length) return '';
+      return `<ol class="steps">${steps.map(step => `<li>${esc(step)}</li>`).join('')}</ol>`;
+    }
     function workflowInputRows(w) {
       const expected = w.expected_inputs || [];
       if (!expected.length) return '';
@@ -1267,7 +1451,8 @@ INDEX_HTML = r"""<!doctype html>
         box.innerHTML = data.workflows.map(w => {
           const diag = w.diagnostics;
           const ok = diag?.ok;
-          const issues = workflowIssues(diag).map(item => `<li>${item}</li>`).join('');
+          const issues = workflowIssues(diag).map(item => `<li>${esc(item)}</li>`).join('');
+          const steps = workflowResolutionSteps(diag);
           const inputs = workflowInputRows(w);
           const form = workflowForm(w);
           return `<div class="workflow-card">
@@ -1276,6 +1461,7 @@ INDEX_HTML = r"""<!doctype html>
               <span class="badge ${ok ? '' : 'warn'}">${ok ? '可用' : '需处理'}</span>
             </div>
             <ul class="diag">${issues}</ul>
+            ${steps}
             ${inputs}
             ${form}
             <div class="row">
@@ -1330,6 +1516,11 @@ INDEX_HTML = r"""<!doctype html>
     async function openOutputFile(file) {
       await fetch('/api/open?target=output-file&file=' + file, {method:'POST'});
     }
+    function renderPayloadError(data) {
+      const steps = data.resolution_steps || data.dependency?.resolution_steps || [];
+      const list = steps.length ? `<ol class="steps">${steps.map(step => `<li>${esc(step)}</li>`).join('')}</ol>` : '';
+      return `<div class="muted">${esc(data.error || '请求失败')}</div>${list}<pre>${esc(JSON.stringify(data, null, 2))}</pre>`;
+    }
     function renderServices(data) {
       const rows = (data.ports || []).map(item => {
         if (item.listening === false) return `<li>${item.port}: 未监听</li>`;
@@ -1337,6 +1528,12 @@ INDEX_HTML = r"""<!doctype html>
         const warn = item.launcher_started ? '' : ' · 如需清理请先确认';
         return `<li>${item.port}: PID ${item.pid || '?'} · ${esc(item.name || '')} · ${owner}${warn}</li>`;
       }).join('');
+      const dependencies = Object.values(data.dependencies || {}).map(item => {
+        const steps = (item.resolution_steps || []).map(step => `<li>${esc(step)}</li>`).join('');
+        const action = steps ? `<ol class="steps">${steps}</ol>` : '';
+        const state = item.ok ? '已就绪' : (item.optional ? '可选未配置' : '需处理');
+        return `<li><strong>${esc(item.name)}</strong> · ${state}<br><span class="muted">${esc(item.summary || '')}</span>${action}</li>`;
+      }).join('') || '<li>依赖诊断不可用</li>';
       return `<div class="workflow-card">
         <div class="workflow-title">Service actions</div>
         <div class="row">
@@ -1347,6 +1544,7 @@ INDEX_HTML = r"""<!doctype html>
           <button class="warn" onclick="cleanupTemp()">Clean temp files</button>
         </div>
       </div>
+      <div class="workflow-card"><div class="workflow-title">依赖诊断</div><ul class="diag">${dependencies}</ul></div>
       <div class="workflow-card"><div class="workflow-title">端口占用</div><ul class="diag">${rows}</ul></div>`;
     }
     async function loadConfig() {
@@ -1480,7 +1678,7 @@ INDEX_HTML = r"""<!doctype html>
       $(target).innerHTML = '<progress max="100" value="1"></progress><div>提交任务中</div><pre></pre>';
       const r = await fetch('/api/watermark/' + kind, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
       const data = await r.json();
-      if (!data.ok) { $(target).innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>'; return; }
+      if (!data.ok) { $(target).innerHTML = renderPayloadError(data); return; }
       const id = data.job.id;
       const timer = setInterval(async () => {
         const jr = await fetch('/api/jobs/' + id); const jd = await jr.json();
@@ -1718,7 +1916,13 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, comfy_shell_html().encode("utf-8"), "text/html; charset=utf-8")
             return
         if self.path == "/api/status":
-            self._json(200, {"ok": True, "comfy": is_port_open(COMFY_PORT), "parse": is_port_open(PARSE_PORT), "watermark": is_port_open(WATERMARK_PORT)})
+            self._json(200, {
+                "ok": True,
+                "comfy": is_port_open(COMFY_PORT),
+                "parse": is_port_open(PARSE_PORT),
+                "watermark": is_port_open(WATERMARK_PORT),
+                "dependencies": dependency_status_payload(),
+            })
             return
         if self.path == "/api/config":
             self._json(200, config_payload())
@@ -1816,15 +2020,17 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path.startswith("/api/watermark/"):
             kind = self.path.rsplit("/", 1)[-1]
-            if kind == "link":
-                ensure_parse_service()
+            request_payload = self._read_json()
+            if kind == "link" and not request_payload.get("parse_video_base_url") and not ensure_parse_service():
+                self._json(503, dependency_error_payload("parse", "parse-video-py service did not start"))
+                return
             if not ensure_watermark_service():
-                self._json(503, {"ok": False, "error": "watermark-service did not start"})
+                self._json(503, dependency_error_payload("watermark", "watermark-service did not start"))
                 return
             status, payload = http_json(
                 f"http://{HOST}:{WATERMARK_PORT}/api/jobs/watermark/{kind}",
                 method="POST",
-                payload=self._read_json(),
+                payload=request_payload,
             )
             self._json(status, payload)
             return

@@ -16,5 +16,7 @@
 - Conda environment paths can be overridden with `CONDA_ROOT` and
   `CONDA_ENVS_ROOT`.
 - FFmpeg lookup can be overridden with `FFMPEG_BIN_DIR`.
+- Missing FFmpeg, optional service, workflow model, and input diagnostics now
+  include actionable resolution steps in the launcher and API responses.
 - Public documentation describes optional third-party dependencies as
   setup-time downloads instead of bundled source.
