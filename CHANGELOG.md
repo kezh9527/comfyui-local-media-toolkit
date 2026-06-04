@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- No unreleased changes yet.
+
+## v0.1.0 - 2026-06-04
+
 ### Added
 
 - Public-source boundary checks for model weights, user media, generated
